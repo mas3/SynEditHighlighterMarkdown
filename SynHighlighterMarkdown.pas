@@ -115,18 +115,31 @@ type
 
 implementation
 
+var
+  RegexAtxHeading: TRegEx;
+  RegexBlockQuote: TRegEx;
+  RegexCodeSpan: TRegEx;
+  RegexDelete: TRegEx;
+  RegexEmpasis1: TRegEx;
+  RegexEmpasis2: TRegEx;
+  RegexFencedCodeBlockBegin: TRegEx;
+  RegexFencedCodeBlockEnd: TRegEx;
+  RegexIndentedCodeBlock: TRegEx;
+  RegexList: TRegEx;
+  RegexUrlLink: TRegEx;
+  RegexPageLink: TRegEx;
+  RegexSetextHeading: TRegEx;
+
 { TSynMarkdownSyn }
 
 function TSynMarkdownSyn.AtxHeadingProc: Boolean;
-const
-  AtxHeading = '^ {0,3}#{1,6} .+$';
 var
   Ret: TMatch;
 begin
   if Run > 0 then
     Exit(False);
 
-  Ret := TRegEx.Match(FLine, AtxHeading, [roCompiled]);
+  Ret := RegexAtxHeading.Match(FLine);
   if Ret.Success then
   begin
     FTokenID := tkHeader;
@@ -137,15 +150,13 @@ begin
 end;
 
 function TSynMarkdownSyn.BlockQuoteProc: Boolean;
-const
-  BlockQuote = '^ *>.+$';
 var
   Ret: TMatch;
 begin
   if Run > 0 then
     Exit(False);
 
-  Ret := TRegEx.Match(FLine, BlockQuote, [roCompiled]);
+  Ret := RegexBlockQuote.Match(FLine);
   if Ret.Success then
   begin
     FTokenID := tkBlockQuote;
@@ -156,15 +167,10 @@ begin
 end;
 
 function TSynMarkdownSyn.CodeSpanProc: Boolean;
-const
-  Code = '`[^`]+`';
 var
   Ret: TMatch;
 begin
-  var
-    Regex: TRegEx := TRegEx.Create(Code, [roCompiled]);
-
-  Ret := Regex.Match(FLine, Run + 1);
+  Ret := RegexCodeSpan.Match(FLine, Run + 1);
   if Ret.Success and (Run = (Ret.Index - 1)) then
   begin
     FTokenID := tkCode;
@@ -218,15 +224,10 @@ begin
 end;
 
 function TSynMarkdownSyn.DeleteProc: Boolean;
-const
-  Delete = '(~{1,2})[^~]+\1';
 var
   Ret: TMatch;
 begin
-  var
-    Regex: TRegEx := TRegEx.Create(Delete, [roCompiled]);
-
-  Ret := Regex.Match(FLine, Run + 1);
+  Ret := RegexDelete.Match(FLine, Run + 1);
   if Ret.Success and (Run = (Ret.Index - 1)) then
   begin
     FTokenID := tkDelete;
@@ -243,16 +244,10 @@ begin
 end;
 
 function TSynMarkdownSyn.EmphasisProc: Boolean;
-const
-  Emphasis1 = '(\*{1,3})[^*]+?\1';
-  Emphasis2 = '(\b_{1,3})[^_].*?\1\b';
 var
   Ret: TMatch;
 begin
-  var
-    Regex1: TRegEx := TRegEx.Create(Emphasis1, [roCompiled]);
-
-  Ret := Regex1.Match(FLine, Run + 1);
+  Ret := RegexEmpasis1.Match(FLine, Run + 1);
   if Ret.Success and (Run = (Ret.Index - 1)) then
   begin
     FTokenID := tkEmphasis;
@@ -260,10 +255,7 @@ begin
     Exit(True);
   end;
 
-  var
-    Regex2: TRegEx := TRegEx.Create(Emphasis2, [roCompiled]);
-
-  Ret := Regex2.Match(FLine, Run + 1);
+  Ret := RegexEmpasis2.Match(FLine, Run + 1);
   if Ret.Success and (Run = (Ret.Index - 1)) then
   begin
     FTokenID := tkEmphasis;
@@ -274,15 +266,13 @@ begin
 end;
 
 function TSynMarkdownSyn.FencedCodeBlockBeginProc: Boolean;
-const
-  Code = '^ {0,3}(([`~])\2{2,})(?: *)([^ ]*)(.*)$';
 var
   Ret: TMatch;
 begin
   if Run > 0 then
     Exit(False);
 
-  Ret := TRegEx.Match(FLine, Code, [roCompiled]);
+  Ret := RegexFencedCodeBlockBegin.Match(FLine);
   if Ret.Success then
   begin
     var
@@ -297,15 +287,13 @@ begin
 end;
 
 function TSynMarkdownSyn.FencedCodeBlockEndProc: Boolean;
-const
-  Code = '^ {0,3}(([`~])\2{2,})$';
 var
   Ret: TMatch;
 begin
   if Run > 0 then
     Exit(False);
 
-  Ret := TRegEx.Match(FLine, Code, [roCompiled]);
+  Ret := RegexFencedCodeBlockEnd.Match(FLine);
   if Ret.Success then
   begin
     var
@@ -392,15 +380,13 @@ begin
 end;
 
 function TSynMarkdownSyn.IndentedCodeBlockProc: Boolean;
-const
-  Code = '^( {0,3}\t| {4,}).*';
 var
   Ret: TMatch;
 begin
   if Run > 0 then
     Exit(False);
 
-  Ret := TRegEx.Match(FLine, Code, [roCompiled]);
+  Ret := RegexIndentedCodeBlock.Match(FLine);
   if Ret.Success then
   begin
     FTokenID := tkCode;
@@ -411,15 +397,13 @@ begin
 end;
 
 function TSynMarkdownSyn.ListProc: Boolean;
-const
-  List = '^ *([-+*]|[0-9]{1,9}\.)(?= )';
 var
   Ret: TMatch;
 begin
   if Run > 0 then
     Exit(False);
 
-  Ret := TRegEx.Match(FLine, List, [roCompiled]);
+  Ret := RegexList.Match(FLine);
   if Ret.Success then
   begin
     FTokenID := tkList;
@@ -463,15 +447,10 @@ begin
 end;
 
 function TSynMarkdownSyn.PageLinkProc: Boolean;
-const
-  Link = '\[\[.+?\]\]';
 var
   Ret: TMatch;
 begin
-  var
-    Regex: TRegEx := TRegEx.Create(Link, [roCompiled]);
-
-  Ret := Regex.Match(FLine, Run + 1);
+  Ret := RegexPageLink.Match(FLine, Run + 1);
   if Ret.Success and (Run = (Ret.Index - 1)) then
   begin
     FTokenID := tkLink;
@@ -487,15 +466,13 @@ begin
 end;
 
 function TSynMarkdownSyn.SetextHeadingProc: Boolean;
-const
-  SetextHeading = '^ {0,3}([=-])\1* *$';
 var
   Ret: TMatch;
 begin
   if Run > 0 then
     Exit(False);
 
-  Ret := TRegEx.Match(FLine, SetextHeading, [roCompiled]);
+  Ret := RegexSetextHeading.Match(FLine);
   if Ret.Success then
   begin
     FTokenID := tkHeader;
@@ -511,8 +488,6 @@ begin
 end;
 
 function TSynMarkdownSyn.UrlLinkProc: Boolean;
-const
-  Link = 'https?://[\w!?/+\-_~=;.,*&@#$%()'']+';
 var
   Ret: TMatch;
 
@@ -527,10 +502,7 @@ var
   end;
 
 begin
-  var
-    Regex: TRegEx := TRegEx.Create(Link, [roCompiled, roIgnoreCase]);
-
-  Ret := Regex.Match(FLine, Run + 1);
+  Ret := RegexUrlLink.Match(FLine, Run + 1);
   if Ret.Success and (Run = (Ret.Index - 1)) then
   begin
     var
@@ -559,5 +531,19 @@ end;
 initialization
 
 RegisterPlaceableHighlighter(TSynMarkdownSyn);
+
+RegexAtxHeading := TRegEx.Create('^ {0,3}#{1,6} .+$', [roCompiled]);
+RegexBlockQuote := TRegEx.Create('^ *>.+$', [roCompiled]);
+RegexCodeSpan := TRegEx.Create('`[^`]+`', [roCompiled]);
+RegexDelete := TRegEx.Create('(~{1,2})[^~]+\1', [roCompiled]);
+RegexEmpasis1 := TRegEx.Create('(\*{1,3})[^*]+?\1', [roCompiled]);
+RegexEmpasis2 := TRegEx.Create('(\b_{1,3})[^_].*?\1\b', [roCompiled]);
+RegexFencedCodeBlockBegin := TRegEx.Create('^ {0,3}(([`~])\2{2,})(?: *)([^ ]*)(.*)$', [roCompiled]);
+RegexFencedCodeBlockEnd := TRegEx.Create('^ {0,3}(([`~])\2{2,})$', [roCompiled]);
+RegexIndentedCodeBlock := TRegEx.Create('^( {0,3}\t| {4,}).*', [roCompiled]);
+RegexList := TRegEx.Create('^ *([-+*]|[0-9]{1,9}\.)(?= )', [roCompiled]);
+RegexUrlLink := TRegEx.Create('https?://[\w!?/+\-_~=;.,*&@#$%()'']+', [roCompiled]);
+RegexPageLink := TRegEx.Create('\[\[.+?\]\]', [roCompiled]);
+RegexSetextHeading := TRegEx.Create('^ {0,3}([=-])\1* *$', [roCompiled]);
 
 end.
