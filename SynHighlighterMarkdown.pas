@@ -130,15 +130,12 @@ var
   RegexPageLink: TRegEx;
   RegexSetextHeading: TRegEx;
 
-{ TSynMarkdownSyn }
+  { TSynMarkdownSyn }
 
 function TSynMarkdownSyn.AtxHeadingProc: Boolean;
 var
   Ret: TMatch;
 begin
-  if Run > 0 then
-    Exit(False);
-
   Ret := RegexAtxHeading.Match(FLine);
   if Ret.Success then
   begin
@@ -153,9 +150,6 @@ function TSynMarkdownSyn.BlockQuoteProc: Boolean;
 var
   Ret: TMatch;
 begin
-  if Run > 0 then
-    Exit(False);
-
   Ret := RegexBlockQuote.Match(FLine);
   if Ret.Success then
   begin
@@ -269,9 +263,6 @@ function TSynMarkdownSyn.FencedCodeBlockBeginProc: Boolean;
 var
   Ret: TMatch;
 begin
-  if Run > 0 then
-    Exit(False);
-
   Ret := RegexFencedCodeBlockBegin.Match(FLine);
   if Ret.Success then
   begin
@@ -383,9 +374,6 @@ function TSynMarkdownSyn.IndentedCodeBlockProc: Boolean;
 var
   Ret: TMatch;
 begin
-  if Run > 0 then
-    Exit(False);
-
   Ret := RegexIndentedCodeBlock.Match(FLine);
   if Ret.Success then
   begin
@@ -400,9 +388,6 @@ function TSynMarkdownSyn.ListProc: Boolean;
 var
   Ret: TMatch;
 begin
-  if Run > 0 then
-    Exit(False);
-
   Ret := RegexList.Match(FLine);
   if Ret.Success then
   begin
@@ -426,10 +411,17 @@ begin
       end;
   else
     begin
-      if not(AtxHeadingProc or BlockQuoteProc or ListProc or
-        SetextHeadingProc or IndentedCodeBlockProc or
-        FencedCodeBlockBeginProc or CodeSpanProc or DeleteProc or
-        EmphasisProc or UrlLinkProc or PageLinkProc) then
+      var
+        Processed: Boolean := False;
+      if Run = 0 then
+      begin
+        Processed := AtxHeadingProc or BlockQuoteProc or ListProc or
+          SetextHeadingProc or IndentedCodeBlockProc or
+          FencedCodeBlockBeginProc;
+      end;
+
+      if (not Processed) and not(CodeSpanProc or DeleteProc or EmphasisProc or
+        UrlLinkProc or PageLinkProc) then
       begin
         FTokenID := tkUnknown;
         Inc(Run);
@@ -469,9 +461,6 @@ function TSynMarkdownSyn.SetextHeadingProc: Boolean;
 var
   Ret: TMatch;
 begin
-  if Run > 0 then
-    Exit(False);
-
   Ret := RegexSetextHeading.Match(FLine);
   if Ret.Success then
   begin
@@ -538,11 +527,14 @@ RegexCodeSpan := TRegEx.Create('`[^`]+`', [roCompiled]);
 RegexDelete := TRegEx.Create('(~{1,2})[^~]+\1', [roCompiled]);
 RegexEmpasis1 := TRegEx.Create('(\*{1,3})[^*]+?\1', [roCompiled]);
 RegexEmpasis2 := TRegEx.Create('(\b_{1,3})[^_].*?\1\b', [roCompiled]);
-RegexFencedCodeBlockBegin := TRegEx.Create('^ {0,3}(([`~])\2{2,})(?: *)([^ ]*)(.*)$', [roCompiled]);
-RegexFencedCodeBlockEnd := TRegEx.Create('^ {0,3}(([`~])\2{2,})$', [roCompiled]);
+RegexFencedCodeBlockBegin :=
+  TRegEx.Create('^ {0,3}(([`~])\2{2,})(?: *)([^ ]*)(.*)$', [roCompiled]);
+RegexFencedCodeBlockEnd := TRegEx.Create('^ {0,3}(([`~])\2{2,})$',
+  [roCompiled]);
 RegexIndentedCodeBlock := TRegEx.Create('^( {0,3}\t| {4,}).*', [roCompiled]);
 RegexList := TRegEx.Create('^ *([-+*]|[0-9]{1,9}\.)(?= )', [roCompiled]);
-RegexUrlLink := TRegEx.Create('https?://[\w!?/+\-_~=;.,*&@#$%()'']+', [roCompiled]);
+RegexUrlLink := TRegEx.Create('https?://[\w!?/+\-_~=;.,*&@#$%()'']+',
+  [roCompiled]);
 RegexPageLink := TRegEx.Create('\[\[.+?\]\]', [roCompiled]);
 RegexSetextHeading := TRegEx.Create('^ {0,3}([=-])\1* *$', [roCompiled]);
 
