@@ -36,10 +36,11 @@ SynEdit1.Highlighter := HL;
 
 ### Componentization
 
-1. Open SynEditHighlighterMarkdown.dproj
-2. Install SynEditHighlighterMarkdown.bpl
-3. Place the TSynMarkdownSyn component from the Tool Palette on the form
-4. In the Object Inspector, assign the TSynMarkdownSyn component to the Highlighter
+1. Add the project directory to the IDE's library path
+2. Open SynEditHighlighterMarkdown.dproj
+3. Install SynEditHighlighterMarkdown.bpl
+4. Place the TSynMarkdownSyn component from the Tool Palette on the form
+5. In the Object Inspector, assign the TSynMarkdownSyn component to the Highlighter
    property of the SynEdit
 
 
