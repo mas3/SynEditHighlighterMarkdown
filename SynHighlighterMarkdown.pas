@@ -34,13 +34,16 @@ interface
 
 uses
   System.Classes, System.StrUtils, Vcl.Graphics, System.RegularExpressions,
-  System.Generics.Collections, SynEditHighlighter;
+  System.Generics.Collections, System.SysUtils, SynEditHighlighter;
 
 type
   TtkTokenKind = (tkUnknown, tkBlockQuote, tkCode, tkDelete, tkEmphasis,
-    tkEntityReference, tkHeader, tkLink, tkList, tkSpace);
+    tkEntityReference, tkHeader, tkHtmlAttrName, tkHtmlAttrValue, tkHtmlComment,
+    tkHtmlTag, tkLink, tkList, tkSpace);
 
-  TRangeState = (rsUnKnown, rsBacktickFencedCodeBlock, rsTildeFencedCodeBlock);
+  TRangeState = (rsUnKnown, rsBacktickFencedCodeBlock,
+    rsHtmlAttrDoubleQuoteValue, rsHtmlAttrName, rsHtmlAttrQuoteValue,
+    rsHtmlAttrValue, rsHtmlComment, rsHtmlTag, rsTildeFencedCodeBlock);
 
   TRangeInfo = packed record
     case Boolean of
@@ -58,6 +61,10 @@ type
     FEmphasisAttri: TSynHighlighterAttributes;
     FEntityReferenceAttri: TSynHighlighterAttributes;
     FHeadingAttri: TSynHighlighterAttributes;
+    FHtmlAttrNameAttri: TSynHighlighterAttributes;
+    FHtmlAttrValueAttri: TSynHighlighterAttributes;
+    FHtmlCommentAttri: TSynHighlighterAttributes;
+    FHtmlTagAttri: TSynHighlighterAttributes;
     FLinkAttri: TSynHighlighterAttributes;
     FListAttri: TSynHighlighterAttributes;
     FSpaceAttri: TSynHighlighterAttributes;
@@ -74,6 +81,13 @@ type
     function EntityReferenceProc: Boolean;
     function FencedCodeBlockBeginProc: Boolean;
     function FencedCodeBlockEndProc: Boolean;
+    procedure HtmlAttrDoubleQuoteValueProc;
+    procedure HtmlAttrNameProc;
+    procedure HtmlAttrQuoteValueProc;
+    procedure HtmlAttrValueProc;
+    procedure HtmlCommentProc;
+    function HtmlOpenProc: Boolean;
+    procedure HtmlTagProc;
     function IndentedCodeBlockProc: Boolean;
     function ListProc: Boolean;
     function PageLinkProc: Boolean;
@@ -109,6 +123,8 @@ type
       read FEntityReferenceAttri write FEntityReferenceAttri;
     property HeadingAttri: TSynHighlighterAttributes read FHeadingAttri
       write FHeadingAttri;
+    property HtmlTagAttri: TSynHighlighterAttributes read FHtmlTagAttri
+      write FHtmlTagAttri;
     property LinkAttri: TSynHighlighterAttributes read FLinkAttri
       write FLinkAttri;
     property ListAttri: TSynHighlighterAttributes read FListAttri
@@ -117,7 +133,7 @@ type
       write FSpaceAttri;
   end;
 
-  procedure SetEntities(Dict: TDictionary<String, String>);
+procedure SetEntities(Dict: TDictionary<String, String>);
 
 implementation
 
@@ -211,6 +227,25 @@ begin
   FHeadingAttri := TSynHighlighterAttributes.Create('Heading', 'Heading');
   FHeadingAttri.Foreground := clWebMediumBlue;
   AddAttribute(FHeadingAttri);
+
+  FHtmlAttrNameAttri := TSynHighlighterAttributes.Create('HtmlAttrName',
+    'HTML Attribute Name');
+  FHtmlAttrNameAttri.Foreground := clWebMediumBlue;
+  AddAttribute(FHtmlAttrNameAttri);
+
+  FHtmlAttrValueAttri := TSynHighlighterAttributes.Create('HtmlAttrValue',
+    'HTML Attribute Value');
+  FHtmlAttrValueAttri.Foreground := clWebCrimson;
+  AddAttribute(FHtmlAttrValueAttri);
+
+  FHtmlCommentAttri := TSynHighlighterAttributes.Create('HtmlComment',
+    'HTML Comment');
+  FHtmlCommentAttri.Foreground := clWebDimGray;
+  AddAttribute(FHtmlCommentAttri);
+
+  FHtmlTagAttri := TSynHighlighterAttributes.Create('HtmlTag', 'HTML Tag');
+  FHtmlTagAttri.Foreground := clWebDarkViolet;
+  AddAttribute(FHtmlTagAttri);
 
   FLinkAttri := TSynHighlighterAttributes.Create('Link', 'Link');
   FLinkAttri.Foreground := clBlue;
@@ -390,6 +425,14 @@ begin
       Result := FEntityReferenceAttri;
     tkHeader:
       Result := FHeadingAttri;
+    tkHtmlAttrName:
+      Result := FHtmlAttrNameAttri;
+    tkHtmlAttrValue:
+      Result := FHtmlAttrValueAttri;
+    tkHtmlComment:
+      Result := FHtmlCommentAttri;
+    tkHtmlTag:
+      Result := FHtmlTagAttri;
     tkLink:
       Result := FLinkAttri;
     tkList:
@@ -404,6 +447,168 @@ end;
 function TSynMarkdownSyn.GetTokenKind: Integer;
 begin
   Result := Ord(FTokenID);
+end;
+
+procedure TSynMarkdownSyn.HtmlAttrDoubleQuoteValueProc;
+begin
+  FTokenID := tkHtmlAttrValue;
+  while not CharInSet(FLine[Run], ['"']) do
+  begin
+    if FLine[Run] = #0 then
+      Exit;
+    Inc(Run);
+  end;
+
+  FRange.State := Ord(rsHtmlAttrName);
+  Inc(Run);
+end;
+
+procedure TSynMarkdownSyn.HtmlAttrNameProc;
+begin
+  if FLine[Run] = '>' then
+  begin
+    Inc(Run);
+    FRange.State := Ord(rsUnKnown);
+    FTokenID := tkUnknown;
+    Exit;
+  end;
+
+  if FLine[Run] = '=' then
+  begin
+    Inc(Run);
+    while CharInSet(FLine[Run], [#9, ' ']) do
+      Inc(Run);
+    FRange.State := Ord(rsHtmlAttrValue);
+    FTokenID := tkUnknown;
+    Exit;
+  end;
+
+  if CharInSet(FLine[Run], [#9, ' ']) then
+  begin
+    while CharInSet(FLine[Run], [#9, ' ']) do
+      Inc(Run);
+
+    FTokenID := tkUnknown;
+    Exit;
+  end;
+
+  FTokenID := tkHtmlAttrName;
+  while not CharInSet(FLine[Run], [#9, ' ', '=', '>', '/']) do
+  begin
+    if FLine[Run] = #0 then
+      Exit;
+    Inc(Run);
+  end;
+end;
+
+procedure TSynMarkdownSyn.HtmlAttrQuoteValueProc;
+begin
+  FTokenID := tkHtmlAttrValue;
+  while not CharInSet(FLine[Run], ['''']) do
+  begin
+    if FLine[Run] = #0 then
+      Exit;
+    Inc(Run);
+  end;
+
+  FRange.State := Ord(rsHtmlAttrName);
+  Inc(Run);
+end;
+
+procedure TSynMarkdownSyn.HtmlAttrValueProc;
+begin
+  if CharInSet(FLine[Run], [#9, ' ']) then
+  begin
+    while CharInSet(FLine[Run], [#9, ' ']) do
+      Inc(Run);
+    FRange.State := Ord(rsHtmlAttrName);
+    FTokenID := tkUnknown;
+    Exit;
+  end;
+
+  FTokenID := tkHtmlAttrValue;
+  if FLine[Run] = '''' then
+  begin
+    Inc(Run);
+    FRange.State := Ord(rsHtmlAttrQuoteValue);
+    Exit;
+  end;
+
+  if FLine[Run] = '"' then
+  begin
+    Inc(Run);
+    FRange.State := Ord(rsHtmlAttrDoubleQuoteValue);
+    Exit;
+  end;
+
+  while not CharInSet(FLine[Run], [#9, ' ', '=', '>', '/']) do
+  begin
+    if FLine[Run] = #0 then
+    begin
+      FRange.State := Ord(rsHtmlAttrName);
+      Exit;
+    end;
+    Inc(Run);
+  end;
+
+  if FLine[Run] = '>' then
+  begin
+    FRange.State := Ord(rsUnKnown);
+    Exit;
+  end;
+end;
+
+procedure TSynMarkdownSyn.HtmlCommentProc;
+begin
+  FTokenID := tkHtmlComment;
+  while FLine[Run] <> #0 do
+  begin
+    if (FLine[Run] = '-') and (FLine[Run + 1] = '-') and (FLine[Run + 2] = '>')
+    then
+    begin
+      Inc(Run, 3);
+      FRange.State := Ord(rsUnKnown);
+      Exit;
+    end;
+    Inc(Run);
+  end;
+end;
+
+function TSynMarkdownSyn.HtmlOpenProc: Boolean;
+begin
+  if FLine[Run] = '<' then
+  begin
+    if (FLine[Run + 1] = '!') and (FLine[Run + 2] = '-') and
+      (FLine[Run + 3] = '-') then
+    begin
+      FTokenID := tkHtmlComment;
+      FRange.State := Ord(rsHtmlComment);
+      Inc(Run, 4);
+      Exit(True);
+    end;
+
+    FTokenID := tkUnknown;
+    FRange.State := Ord(rsHtmlTag);
+    FRange.Length := 0;
+    Inc(Run);
+    Exit(True);
+  end;
+  Result := False;
+end;
+
+procedure TSynMarkdownSyn.HtmlTagProc;
+begin
+  FTokenID := tkHtmlTag;
+  if CharInSet(FLine[Run], ['/', '!']) then
+    Inc(Run);
+
+  while CharInSet(FLine[Run], ['a' .. 'z', 'A' .. 'Z']) do
+    Inc(Run);
+
+  if CharInSet(FLine[Run], [#0, #9, ' ']) then
+    FRange.State := Ord(rsHtmlAttrName)
+  else
+    FRange.State := Ord(rsUnKnown);
 end;
 
 function TSynMarkdownSyn.IndentedCodeBlockProc: Boolean;
@@ -445,6 +650,18 @@ begin
         FencedCodeBlockEndProc;
         Run := FLineLen;
       end;
+    rsHtmlAttrDoubleQuoteValue:
+      HtmlAttrDoubleQuoteValueProc;
+    rsHtmlAttrName:
+      HtmlAttrNameProc;
+    rsHtmlAttrQuoteValue:
+      HtmlAttrQuoteValueProc;
+    rsHtmlAttrValue:
+      HtmlAttrValueProc;
+    rsHtmlComment:
+      HtmlCommentProc;
+    rsHtmlTag:
+      HtmlTagProc;
   else
     begin
       var
@@ -457,7 +674,7 @@ begin
       end;
 
       if (not Processed) and not(CodeSpanProc or DeleteProc or EmphasisProc or
-        EntityReferenceProc or UrlLinkProc or PageLinkProc) then
+        EntityReferenceProc or HtmlOpenProc or UrlLinkProc or PageLinkProc) then
       begin
         FTokenID := tkUnknown;
         Inc(Run);
@@ -515,17 +732,6 @@ end;
 function TSynMarkdownSyn.UrlLinkProc: Boolean;
 var
   Ret: TMatch;
-
-  function CountChar(const Text: String; const Ch: Char): Integer;
-  begin
-    Result := 0;
-    for var I := 1 to Length(Text) do
-    begin
-      if Text[I] = Ch then
-        Inc(Result);
-    end;
-  end;
-
 begin
   Ret := RegexUrlLink.Match(FLine, Run + 1);
   if Ret.Success and (Run = (Ret.Index - 1)) then
@@ -536,9 +742,9 @@ begin
     if FLine[NewRun - 1] = ')' then
     begin
       var
-        Open: Integer := CountChar(Ret.Value, '(');
+        Open: Integer := Ret.Value.CountChar('(');
       var
-        Close: Integer := CountChar(Ret.Value, ')');
+        Close: Integer := Ret.Value.CountChar(')');
       while (Open < Close) and (FLine[NewRun - 1] = ')') do
       begin
         Dec(NewRun);
