@@ -123,6 +123,12 @@ type
       read FEntityReferenceAttri write FEntityReferenceAttri;
     property HeadingAttri: TSynHighlighterAttributes read FHeadingAttri
       write FHeadingAttri;
+    property HtmlAttrNametAttri: TSynHighlighterAttributes read FHtmlAttrNameAttri
+      write FHtmlAttrNameAttri;
+    property HtmlAttrValueAttri: TSynHighlighterAttributes read FHtmlAttrValueAttri
+      write FHtmlAttrValueAttri;
+    property HtmlCommentAttri: TSynHighlighterAttributes read FHtmlCommentAttri
+      write FHtmlCommentAttri;
     property HtmlTagAttri: TSynHighlighterAttributes read FHtmlTagAttri
       write FHtmlTagAttri;
     property LinkAttri: TSynHighlighterAttributes read FLinkAttri
