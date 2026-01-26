@@ -123,10 +123,10 @@ type
       read FEntityReferenceAttri write FEntityReferenceAttri;
     property HeadingAttri: TSynHighlighterAttributes read FHeadingAttri
       write FHeadingAttri;
-    property HtmlAttrNametAttri: TSynHighlighterAttributes read FHtmlAttrNameAttri
-      write FHtmlAttrNameAttri;
-    property HtmlAttrValueAttri: TSynHighlighterAttributes read FHtmlAttrValueAttri
-      write FHtmlAttrValueAttri;
+    property HtmlAttrNametAttri: TSynHighlighterAttributes
+      read FHtmlAttrNameAttri write FHtmlAttrNameAttri;
+    property HtmlAttrValueAttri: TSynHighlighterAttributes
+      read FHtmlAttrValueAttri write FHtmlAttrValueAttri;
     property HtmlCommentAttri: TSynHighlighterAttributes read FHtmlCommentAttri
       write FHtmlCommentAttri;
     property HtmlTagAttri: TSynHighlighterAttributes read FHtmlTagAttri
@@ -679,11 +679,24 @@ begin
           FencedCodeBlockBeginProc;
       end;
 
-      if (not Processed) and not(CodeSpanProc or DeleteProc or EmphasisProc or
-        EntityReferenceProc or HtmlOpenProc or UrlLinkProc or PageLinkProc) then
+      if not Processed then
       begin
-        FTokenID := tkUnknown;
-        Inc(Run);
+        case FLine[Run] of
+          '`':
+            CodeSpanProc;
+          '~':
+            DeleteProc;
+          '*', '_':
+            EmphasisProc;
+          '&':
+            EntityReferenceProc;
+          '<':
+            HtmlOpenProc;
+          'h', 'H':
+            UrlLinkProc;
+          '[':
+            PageLinkProc;
+        end;
       end;
     end;
   end;
